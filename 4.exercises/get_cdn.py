@@ -6,15 +6,15 @@ from bs4 import BeautifulSoup
 
 import sys, getopt
 
+def make_request(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return BeautifulSoup(response.text, 'html.parser')
 
 def get_react_cdn():
     url = 'https://es.reactjs.org/docs/add-react-to-a-website.html'
-    response = requests.get(url)
-
-    print(response)
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-    targets = soup.findAll('span', class_ = 'token attr-value')
+    bs = make_request(url)
+    targets = bs.findAll('span', class_ = 'token attr-value')
     links = []
     print('\n --------- React ----------\n')
     for t in targets:
@@ -36,10 +36,8 @@ def get_react_cdn():
 
 def get_vue_cdn():
     url = 'https://vuejs.org/v2/guide/'
-    response = requests.get(url)
-    print(response)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    targets = soup.select('.hljs-string',limit=2)
+    bs = make_request(url)
+    targets = bs.select('.hljs-string',limit=2)
     print('\n --------- Vue ----------\n')
     print(f'''
 -------- Development --------
@@ -51,33 +49,61 @@ def get_vue_cdn():
     
 ''')
 
+def get_bulma_cdn():
+    url = 'https://data.jsdelivr.com/v1/package/npm/bulma'
+    last_version = requests.get(url).json().get('tags').get('latest')
+    bulma = f'"https://cdn.jsdelivr.net/npm/bulma@{last_version}/css/bulma.css"'
+    bulma_min = f'"https://cdn.jsdelivr.net/npm/bulma@{last_version}/css/bulma.min.css"'
+    print('\n --------- Bulma ----------\n')
+    print(bulma, '\n', bulma_min)
+
+def get_bootstrap_cdn():
+    url = 'https://getbootstrap.com/'
+    bs = make_request(url)
+    a = bs.find('a', class_='btn btn-lg btn-bd-primary mb-3 mr-md-3')
+    last_version =a['href']
+    bs =  make_request(f'{url}{last_version[1:]}')
+    links = bs.findAll('code',{'class':'language-html', 'data-lang':'html'})
+    link_css, js = '', ''
+    for text in links[0]:
+        link_css += f'{text.string} '
+    for text in links[1]:
+        if text.string == '&gt;&lt;/script&gt;': js += '\n\n'
+        js += text.string
+    print('\n --------- Bootstrap ----------\n', '\n******** css *********\n', link_css, '\n******** js *********\n', js )
+
 def show_options():
     print('''
-        This script let you get cdn for React or Vue
+        This script let you get cdn for React, Vue o Bulma
         **** Options ****
-            -h: Show you how to use this script
+            -h / --help: Show you how to use this script
             -v: Get Vue cdn
             -r: Get React cdn
+            --bulma: Get Bulma cdn
+            --bootstrap: Get Bootstrap cdn
     ''')
 
 def options_handler(argv):
     try:
-        options = getopt.getopt(argv,'hvr')
+        if len(argv) == 0: print('-h / --help: Show you how to use this script')
+        options = getopt.getopt(argv,'hvr',['bulma', 'bootstrap','help'])
         
     except getopt.GetoptError:
         print('get_cdn.py -h  for help')
         sys.exit(2)
     
     for o in options[0]:
-       
-        if o[0] =='-h':
+        if o in ('-h', '--help'):
             show_options()
         elif o[0] =='-v':
             get_vue_cdn()
         elif o[0] == '-r':
             get_react_cdn()
-        else:
-            show_options()
+        elif o[0] == '--bulma':
+            get_bulma_cdn()
+        elif o[0] == '--bootstrap':
+            get_bootstrap_cdn()
+            
    
 
 
